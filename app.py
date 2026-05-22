@@ -226,9 +226,9 @@ def generate_pdf_report(vendor, luce_data: dict, gas_data: dict,
                         annual_cost: float) -> bytes:
     pdf = FPDF()
     pdf.add_page()
-    pdf.add_font("DejaVu", "", "/home/frlinux/CLEM/fonts/DejaVuSans.ttf", uni=True)
-    pdf.add_font("DejaVu", "B", "/home/frlinux/CLEM/fonts/DejaVuSans-Bold.ttf", uni=True)
-    pdf.add_font("DejaVu", "I", "/home/frlinux/CLEM/fonts/DejaVuSans.ttf", uni=True)
+    pdf.add_font("DejaVu", "", "fonts/DejaVuSans.ttf", uni=True)
+    pdf.add_font("DejaVu", "B", "fonts/DejaVuSans-Bold.ttf", uni=True)
+    pdf.add_font("DejaVu", "I", "fonts/DejaVuSans.ttf", uni=True)
     pdf.set_font("DejaVu", "B", 18)
     pdf.cell(0, 12, "CLEM - Claude Energy Monitor", ln=True, align="C")
     pdf.set_font("DejaVu", "I", 9)
