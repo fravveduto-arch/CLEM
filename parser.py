@@ -172,6 +172,30 @@ class EnergyParser:
                     continue
         self.data['consumption'] = 0.0
 
+    def _parse_consumption(self, bill_type: str):
+        if bill_type == 'Gas':
+            patterns = [
+                r'Consumo\s+(?:del\s+periodo\s+)?([\d,.]+)\s*[Ss]mc',
+                r'Volume\s+(?:fatturato\s+)?([\d,.]+)\s*[Ss]mc',
+                r'([\d,.]+)\s*[Ss]mc\b',
+            ]
+        else:
+            patterns = [
+                r'Consumo\s+(?:del\s+periodo\s+)?([\d,.]+)\s*kWh',
+                r'Quota\s+consumi\s+([\d,.]+)\s*kWh',
+                r'Energia\s+(?:attiva\s+)?([\d,.]+)\s*kWh',
+                r'([\d,.]+)\s*kWh\b',
+            ]
+        for p in patterns:
+            m = re.search(p, self.text)
+            if m:
+                try:
+                    self.data['consumption'] = float(m.group(1).replace('.', '').replace(',', '.'))
+                    return
+                except ValueError:
+                    continue
+        self.data['consumption'] = 0.0
+
     def _parse_costs(self, vendor: str, bill_type: str):
         # Spread (offerte variabili indicizzate)
         if bill_type == 'Gas':
