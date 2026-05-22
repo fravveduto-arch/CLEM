@@ -376,8 +376,8 @@ def generate_pdf_report(vendor, luce_data: dict, gas_data: dict,
     
     # Registrazione font Unicode
     font_dir = os.path.join(os.path.dirname(__file__), "fonts")
-    pdf.add_font("DejaVu", "", os.path.join(font_dir, "DejaVuSans.ttf"), unicode=True)
-    pdf.add_font("DejaVu", "B", os.path.join(font_dir, "DejaVuSans-Bold.ttf"), unicode=True)
+    pdf.add_font("DejaVu", "", os.path.join(font_dir, "DejaVuSans.ttf"))
+    pdf.add_font("DejaVu", "B", os.path.join(font_dir, "DejaVuSans-Bold.ttf"))
     
     pdf.add_page()
     pdf.set_font("DejaVu", "B", 18)
