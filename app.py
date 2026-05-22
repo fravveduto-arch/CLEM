@@ -1,6 +1,6 @@
 """
-CLEM — Claude Energy Monitor
-app.py — Applicazione principale Streamlit.
+CLEM - Claude Energy Monitor
+app.py - Applicazione principale Streamlit.
 
 Funzionalità:
   • Tab personale: carica PDF bollette, archivio locale, analisi tecnica, simulazione dual fuel
@@ -26,8 +26,8 @@ from market import get_market_indices, get_market_offers, FALLBACK, FALLBACK_OFF
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="CLEM — Claude Energy Monitor",
-    page_icon="⚡",
+    page_title="CLEM - Claude Energy Monitor",
+    page_icon="Luce",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -244,7 +244,7 @@ def render_simulation_tabs(current_annual, luce_kwh, gas_smc,
     src_label = "Offerte aggiornate da ARERA/comparatori" if src == 'arera_websearch' else "Offerte di riferimento (aggiornamento in corso)"
     st.caption(f"📋 {src_label} | Aggiornamento ogni 15 giorni")
 
-    tab_l, tab_g, tab_d = st.tabs(["⚡ Solo Luce", "🔥 Solo Gas", "🔌 Dual Fuel"])
+    tab_l, tab_g, tab_d = st.tabs(["Luce Solo Luce", "Gas Solo Gas", "🔌 Dual Fuel"])
 
     best_offer_name = ""
     best_saving     = 0.0
@@ -292,7 +292,7 @@ def render_simulation_tabs(current_annual, luce_kwh, gas_smc,
 
 
 def render_comparison_table(current_annual, luce_kwh, gas_smc, indices, extra_offers=None):
-    """Mantenuto per compatibilità con tab ospite — usa offerte fallback."""
+    """Mantenuto per compatibilità con tab ospite - usa offerte fallback."""
     offers_luce = FALLBACK_OFFERS['luce']
     offers_gas  = FALLBACK_OFFERS['gas']
     res = _build_results_dual(offers_luce, offers_gas, current_annual, luce_kwh, gas_smc, indices)
@@ -309,14 +309,14 @@ def render_alert(best_offer_name: str, best_saving: float):
     if best_saving >= SAVINGS_ALERT_THRESHOLD:
         st.markdown(f"""
         <div class="alert-saving">
-        💡 RISPARMIO RILEVATO — Passando a <strong>{best_offer_name}</strong>
-        potresti risparmiare circa <strong>€ {best_saving:,.0f} / anno</strong>.
+        💡 RISPARMIO RILEVATO - Passando a <strong>{best_offer_name}</strong>
+        potresti risparmiare circa <strong>EUR {best_saving:,.0f} / anno</strong>.
         </div>
         """, unsafe_allow_html=True)
     elif best_saving > 0:
         st.markdown(f"""
         <div class="alert-neutral">
-        ℹ️ Risparmio marginale rilevato (€ {best_saving:,.0f}/anno con {best_offer_name}).
+        ℹ️ Risparmio marginale rilevato (EUR {best_saving:,.0f}/anno con {best_offer_name}).
         Potrebbe non valere i costi di switching.
         </div>
         """, unsafe_allow_html=True)
@@ -352,11 +352,11 @@ def generate_pdf_report(vendor, luce_data: dict, gas_data: dict,
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 18)
-    pdf.cell(0, 12, "CLEM — Claude Energy Monitor", ln=True, align="C")
+    pdf.cell(0, 12, "CLEM - Claude Energy Monitor", ln=True, align="C")
     pdf.set_font("Helvetica", "I", 9)
     pdf.cell(0, 5, f"Report generato il {date.today().strftime('%d/%m/%Y')} | "
-                   f"PUN: {indices['PUN_Luce']} €/kWh | PSV: {indices['PSV_Gas']} €/Smc | "
-                   f"Fonte: {indices.get('source','—')}", ln=True, align="C")
+                   f"PUN: {indices['PUN_Luce']} EUR/kWh | PSV: {indices['PSV_Gas']} EUR/Smc | "
+                   f"Fonte: {indices.get('source','-')}", ln=True, align="C")
     pdf.ln(6)
 
     # Sezione fornitore attuale
@@ -382,23 +382,23 @@ def generate_pdf_report(vendor, luce_data: dict, gas_data: dict,
         pdf.ln(3)
 
     if luce_data:
-        section_table("⚡ Energia Elettrica", [
-            ["PUN (Mercato)", f"~{indices['PUN_Luce']} €/kWh", "Aggiornato"],
+        section_table("Luce Energia Elettrica", [
+            ["PUN (Mercato)", f"~{indices['PUN_Luce']} EUR/kWh", "Aggiornato"],
             ["Perdite di rete", "+10%", "Moltiplicatore 1,10"],
-            ["Spread", f"{luce_data.get('spread',0):.4f} €/kWh", "Da contratto"],
-            ["Quota fissa", f"{luce_data.get('fixed_cost',0):.2f} €/mese", "PCV + Potenza"],
+            ["Spread", f"{luce_data.get('spread',0):.4f} EUR/kWh", "Da contratto"],
+            ["Quota fissa", f"{luce_data.get('fixed_cost',0):.2f} EUR/mese", "PCV + Potenza"],
         ])
 
     if gas_data:
-        section_table("🔥 Gas Naturale", [
-            ["PSV (Mercato)", f"{indices['PSV_Gas']} €/Smc", "Aggiornato"],
-            ["Spread", f"{gas_data.get('spread',0):.4f} €/Smc", "Da contratto"],
-            ["Quota fissa", f"{gas_data.get('fixed_cost',0):.2f} €/mese", "QVD + Quote"],
+        section_table("Gas Gas Naturale", [
+            ["PSV (Mercato)", f"{indices['PSV_Gas']} EUR/Smc", "Aggiornato"],
+            ["Spread", f"{gas_data.get('spread',0):.4f} EUR/Smc", "Da contratto"],
+            ["Quota fissa", f"{gas_data.get('fixed_cost',0):.2f} EUR/mese", "QVD + Quote"],
         ])
 
     # Spesa annua attuale
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(0, 8, f"Spesa Annua Stimata (attuale): € {annual_cost:,.2f}", ln=True)
+    pdf.cell(0, 8, f"Spesa Annua Stimata (attuale): EUR {annual_cost:,.2f}", ln=True)
     pdf.ln(4)
 
     # Tabella confronto
@@ -414,8 +414,8 @@ def generate_pdf_report(vendor, luce_data: dict, gas_data: dict,
     for _, row in comparison_df.iterrows():
         pdf.cell(75, 6, str(row.get('Offerta', '')), 1)
         pdf.cell(25, 6, str(row.get('Tipo', '')), 1)
-        pdf.cell(45, 6, str(row.get('Costo Annuo Stimato', '')).replace('€','EUR'), 1)
-        pdf.cell(40, 6, str(row.get('Risparmio Annuo', '')).replace('€','EUR'), 1, 1)
+        pdf.cell(45, 6, str(row.get('Costo Annuo Stimato', '')).replace('EUR','EUR'), 1)
+        pdf.cell(40, 6, str(row.get('Risparmio Annuo', '')).replace('EUR','EUR'), 1, 1)
 
     pdf.ln(6)
     pdf.set_font("Helvetica", "I", 8)
@@ -460,8 +460,8 @@ def get_prefill() -> dict:
 #  MAIN APP
 # ═══════════════════════════════════════════════════════════════════════════════
 
-st.markdown("# ⚡ CLEM")
-st.markdown("##### Claude Energy Monitor — Analisi e comparazione bollette energia")
+st.markdown("# Luce CLEM")
+st.markdown("##### Claude Energy Monitor - Analisi e comparazione bollette energia")
 st.markdown("---")
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -493,13 +493,13 @@ with st.sidebar:
     else:
         indices = FALLBACK.copy()
         market_offers = {'luce': FALLBACK_OFFERS['luce'], 'gas': FALLBACK_OFFERS['gas'], 'source': 'fallback'}
-        st.caption("⚠️ API key non impostata — usando valori predefiniti")
+        st.caption("⚠️ API key non impostata - usando valori predefiniti")
 
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("PUN", f"{indices['PUN_Luce']:.4f}", "€/kWh")
+        st.metric("PUN", f"{indices['PUN_Luce']:.4f}", "EUR/kWh")
     with col2:
-        st.metric("PSV", f"{indices['PSV_Gas']:.4f}", "€/Smc")
+        st.metric("PSV", f"{indices['PSV_Gas']:.4f}", "EUR/Smc")
 
     if st.button("🔄 Forza aggiornamento"):
         cache_file = os.path.join(os.path.dirname(__file__), ".market_cache.json")
@@ -512,18 +512,18 @@ with st.sidebar:
     custom_name = st.text_input("Nome gestore", "La mia offerta")
     custom_type = st.selectbox("Tipo", ["Variabile", "Fisso"])
     if custom_type == "Variabile":
-        cl_spread = st.number_input("Spread Luce (€/kWh)", value=0.010, format="%.4f")
-        cg_spread = st.number_input("Spread Gas (€/Smc)",  value=0.038, format="%.4f")
-        cl_fixed  = st.number_input("Quota fissa Luce (€/mese)", value=10.0)
-        cg_fixed  = st.number_input("Quota fissa Gas (€/mese)",  value=10.0)
+        cl_spread = st.number_input("Spread Luce (EUR/kWh)", value=0.010, format="%.4f")
+        cg_spread = st.number_input("Spread Gas (EUR/Smc)",  value=0.038, format="%.4f")
+        cl_fixed  = st.number_input("Quota fissa Luce (EUR/mese)", value=10.0)
+        cg_fixed  = st.number_input("Quota fissa Gas (EUR/mese)",  value=10.0)
         custom_offer = {'name': custom_name, 'type': 'Variabile',
                         'luce_spread': cl_spread, 'gas_spread': cg_spread,
                         'luce_fixed': cl_fixed, 'gas_fixed': cg_fixed, 'bonus': 0}
     else:
-        cl_price = st.number_input("Prezzo fisso Luce (€/kWh)", value=0.110, format="%.4f")
-        cg_price = st.number_input("Prezzo fisso Gas (€/Smc)",  value=0.450, format="%.4f")
-        cl_fixed = st.number_input("Quota fissa Luce (€/mese)", value=10.0)
-        cg_fixed = st.number_input("Quota fissa Gas (€/mese)",  value=10.0)
+        cl_price = st.number_input("Prezzo fisso Luce (EUR/kWh)", value=0.110, format="%.4f")
+        cg_price = st.number_input("Prezzo fisso Gas (EUR/Smc)",  value=0.450, format="%.4f")
+        cl_fixed = st.number_input("Quota fissa Luce (EUR/mese)", value=10.0)
+        cg_fixed = st.number_input("Quota fissa Gas (EUR/mese)",  value=10.0)
         custom_offer = {'name': custom_name, 'type': 'Fisso',
                         'luce_price': cl_price, 'gas_price': cg_price,
                         'luce_fixed': cl_fixed, 'gas_fixed': cg_fixed, 'bonus': 0}
@@ -534,7 +534,7 @@ with st.sidebar:
         st.success(f"Offerta '{custom_name}' aggiunta!")
 
     st.markdown("---")
-    st.caption("CLEM v1.0 — Powered by Claude & Streamlit")
+    st.caption("CLEM v1.0 - Powered by Claude & Streamlit")
 
 
 extra_offers = st.session_state.get('custom_offers', [])
@@ -547,7 +547,7 @@ tab_personal, tab_guest = st.tabs([
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  TAB 1 — ANALISI PERSONALE
+#  TAB 1 - ANALISI PERSONALE
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab_personal:
 
@@ -641,14 +641,14 @@ with tab_personal:
         hist_col1, hist_col2 = st.columns(2)
         with hist_col1:
             if len(luce_df) > 1:
-                st.markdown("**⚡ Energia Elettrica (kWh)**")
+                st.markdown("**Luce Energia Elettrica (kWh)**")
                 hist_l = luce_df[['bill_date','consumption']].copy()
                 hist_l['_dp'] = pd.to_datetime(hist_l['bill_date'], format='%d/%m/%Y', errors='coerce')
                 hist_l = hist_l.sort_values('_dp').set_index('bill_date')['consumption']
                 st.bar_chart(hist_l)
         with hist_col2:
             if len(gas_df) > 1:
-                st.markdown("**🔥 Gas Naturale (Smc)**")
+                st.markdown("**Gas Gas Naturale (Smc)**")
                 hist_g = gas_df[['bill_date','consumption']].copy()
                 hist_g['_dp'] = pd.to_datetime(hist_g['bill_date'], format='%d/%m/%Y', errors='coerce')
                 hist_g = hist_g.sort_values('_dp').set_index('bill_date')['consumption']
@@ -660,23 +660,23 @@ with tab_personal:
     col_l, col_g = st.columns(2)
     with col_l:
         if current_luce is not None:
-            st.markdown("#### ⚡ Energia Elettrica")
-            st.caption(f"Bolletta del {current_luce.get('bill_date','—')}")
+            st.markdown("#### Luce Energia Elettrica")
+            st.caption(f"Bolletta del {current_luce.get('bill_date','-')}")
             st.table(pd.DataFrame([
-                {"Voce": "PUN (Mercato)",      "Valore": f"~{indices['PUN_Luce']} €/kWh",     "Note": "Aggiornato"},
+                {"Voce": "PUN (Mercato)",      "Valore": f"~{indices['PUN_Luce']} EUR/kWh",     "Note": "Aggiornato"},
                 {"Voce": "Perdite di rete",    "Valore": "+10% sul PUN",                       "Note": "Moltiplicatore 1,10"},
-                {"Voce": "Spread contratto",   "Valore": f"{safe_float(current_luce.get('spread',0)):.4f} €/kWh", "Note": "Da bolletta"},
-                {"Voce": "Quota fissa",        "Valore": f"{luce_fixed_month:.2f} €/mese",     "Note": "PCV + Potenza"},
+                {"Voce": "Spread contratto",   "Valore": f"{safe_float(current_luce.get('spread',0)):.4f} EUR/kWh", "Note": "Da bolletta"},
+                {"Voce": "Quota fissa",        "Valore": f"{luce_fixed_month:.2f} EUR/mese",     "Note": "PCV + Potenza"},
                 {"Voce": "Consumo periodo",    "Valore": f"{safe_float(current_luce.get('consumption',0)):.0f} kWh", "Note": ""},
             ]))
     with col_g:
         if current_gas is not None:
-            st.markdown("#### 🔥 Gas Naturale")
-            st.caption(f"Bolletta del {current_gas.get('bill_date','—')}")
+            st.markdown("#### Gas Gas Naturale")
+            st.caption(f"Bolletta del {current_gas.get('bill_date','-')}")
             st.table(pd.DataFrame([
-                {"Voce": "PSV (Mercato)",      "Valore": f"{indices['PSV_Gas']} €/Smc",        "Note": "Aggiornato"},
-                {"Voce": "Spread contratto",   "Valore": f"{safe_float(current_gas.get('spread',0)):.4f} €/Smc", "Note": "Da bolletta"},
-                {"Voce": "Quota fissa",        "Valore": f"{gas_fixed_month:.2f} €/mese",      "Note": "QVD + Quote"},
+                {"Voce": "PSV (Mercato)",      "Valore": f"{indices['PSV_Gas']} EUR/Smc",        "Note": "Aggiornato"},
+                {"Voce": "Spread contratto",   "Valore": f"{safe_float(current_gas.get('spread',0)):.4f} EUR/Smc", "Note": "Da bolletta"},
+                {"Voce": "Quota fissa",        "Valore": f"{gas_fixed_month:.2f} EUR/mese",      "Note": "QVD + Quote"},
                 {"Voce": "Consumo periodo",    "Valore": f"{safe_float(current_gas.get('consumption',0)):.0f} Smc", "Note": ""},
             ]))
 
@@ -726,10 +726,10 @@ with tab_personal:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-#  TAB 2 — ANALISI OSPITE
+#  TAB 2 - ANALISI OSPITE
 # ═══════════════════════════════════════════════════════════════════════════════
 with tab_guest:
-    st.markdown("### 👥 Analisi Rapida — Ospite")
+    st.markdown("### 👥 Analisi Rapida - Ospite")
     st.caption("Nessun account necessario. Carica la tua bolletta oppure inserisci i dati manualmente.")
 
     prefill = get_prefill()
@@ -759,7 +759,7 @@ with tab_guest:
                 guest_gas_smc  = safe_float(bd.get('consumption', 150)) if bd.get('type') == 'Gas'  else guest_gas_smc
                 guest_luce_spr = safe_float(bd.get('spread', 0))        if bd.get('type') == 'Luce' else guest_luce_spr
                 guest_gas_spr  = safe_float(bd.get('spread', 0))        if bd.get('type') == 'Gas'  else guest_gas_spr
-                st.success(f"✅ Bolletta letta — Fornitore: **{guest_vendor}** | Tipo: **{bd.get('type','?')}** | "
+                st.success(f"✅ Bolletta letta - Fornitore: **{guest_vendor}** | Tipo: **{bd.get('type','?')}** | "
                            f"Consumo: **{bd.get('consumption',0)} {'kWh' if bd.get('type')=='Luce' else 'Smc'}**")
                 st.info("ℹ️ Hai caricato una sola bolletta. Integra i dati mancanti qui sotto se necessario.")
             except Exception as e:
@@ -782,15 +782,15 @@ with tab_guest:
 
     col4, col5, col6, col7 = st.columns(4)
     with col4:
-        guest_luce_spr = st.number_input("Spread Luce (€/kWh)", value=float(guest_luce_spr), format="%.4f", key="g_lspr",
-                                          help="Lascia 0 se non lo conosci — verrà usato solo il PUN")
+        guest_luce_spr = st.number_input("Spread Luce (EUR/kWh)", value=float(guest_luce_spr), format="%.4f", key="g_lspr",
+                                          help="Lascia 0 se non lo conosci - verrà usato solo il PUN")
     with col5:
-        guest_gas_spr = st.number_input("Spread Gas (€/Smc)", value=float(guest_gas_spr), format="%.4f", key="g_gspr")
+        guest_gas_spr = st.number_input("Spread Gas (EUR/Smc)", value=float(guest_gas_spr), format="%.4f", key="g_gspr")
     with col6:
         fv_g = FIXED_COSTS.get(guest_vendor, FIXED_COSTS['Altro'])
-        guest_luce_fix = st.number_input("Quota fissa Luce (€/mese)", value=float(guest_luce_fix) or fv_g['Luce'], key="g_lfix")
+        guest_luce_fix = st.number_input("Quota fissa Luce (EUR/mese)", value=float(guest_luce_fix) or fv_g['Luce'], key="g_lfix")
     with col7:
-        guest_gas_fix = st.number_input("Quota fissa Gas (€/mese)", value=float(guest_gas_fix) or fv_g['Gas'], key="g_gfix")
+        guest_gas_fix = st.number_input("Quota fissa Gas (EUR/mese)", value=float(guest_gas_fix) or fv_g['Gas'], key="g_gfix")
 
     if st.button("🔍 Calcola risparmio", type="primary", key="guest_calc"):
         if guest_luce_kwh == 0 and guest_gas_smc == 0:
@@ -806,7 +806,7 @@ with tab_guest:
             )
 
             st.markdown("---")
-            st.metric("💶 Spesa Annua Stimata (fornitore attuale)", f"€ {guest_annual:,.2f}")
+            st.metric("💶 Spesa Annua Stimata (fornitore attuale)", f"EUR {guest_annual:,.2f}")
 
             res_df_g, best_offer_g, best_saving_g = render_comparison_table(
                 guest_annual, annual_luce, annual_gas, indices, extra_offers
