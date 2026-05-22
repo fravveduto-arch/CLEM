@@ -4,3 +4,4 @@ fpdf2>=2.7.9
 pandas>=2.2.0
 anthropic>=0.28.0
 requests>=2.31.0
+python-dotenv>=1.0.0

@@ -93,9 +93,9 @@ def get_market_indices(api_key: str) -> dict:
         client = Anthropic(api_key=api_key)
         today = str(date.today())
         response = client.messages.create(
-            model="claude-sonnet-4-5",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=512,
-            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+            tools=[{"type": "web_search_20250105", "name": "web_search"}],
             messages=[{"role": "user", "content": (
                 f"Oggi e' {today}. Cerca il valore attuale del PUN (Prezzo Unico Nazionale) "
                 f"dell'energia elettrica in Italia in EUR/kWh e il PSV (Punto di Scambio Virtuale) "
@@ -154,9 +154,9 @@ def get_market_offers(api_key: str) -> dict:
         )
 
         response = client.messages.create(
-            model="claude-sonnet-4-5",
+            model="claude-3-5-sonnet-20241022",
             max_tokens=2000,
-            tools=[{"type": "web_search_20250305", "name": "web_search"}],
+            tools=[{"type": "web_search_20250105", "name": "web_search"}],
             messages=[{"role": "user", "content": prompt}]
         )
 

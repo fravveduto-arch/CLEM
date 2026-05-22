@@ -62,6 +62,7 @@ class EnergyParser:
         self._parse_consumption(bill_type)
         self._parse_costs(vendor, bill_type)
         self._parse_identifiers(bill_type)
+        self._parse_index_details(bill_type)
 
         return self.data
 
@@ -240,3 +241,26 @@ class EnergyParser:
         self.data['pod'] = pod_m.group(1) if pod_m else ''
         pdr_m = re.search(r'PDR\s+(\d+)', self.text)
         self.data['pdr'] = pdr_m.group(1) if pdr_m else ''
+
+    def _parse_index_details(self, bill_type: str):
+        """
+        Rileva come viene applicato il PUN/PSV e la frequenza di aggiornamento.
+        """
+        if bill_type == 'Luce':
+            # Tipo applicazione PUN
+            if re.search(r'monoraria|F0', self.text, re.IGNORECASE):
+                self.data['index_mode'] = 'PUN Monorario'
+            elif re.search(r'fasce|F1|F2|F3', self.text, re.IGNORECASE):
+                self.data['index_mode'] = 'PUN Multi-fascia'
+            else:
+                self.data['index_mode'] = 'PUN Medio mensile'
+            
+            self.data['update_freq'] = 'Mensile'
+        else:
+            # Gas
+            self.data['index_mode'] = 'PSV (Media Day-Ahead)'
+            self.data['update_freq'] = 'Mensile'
+
+        # Sovrascrittura se troviamo "trimestrale" in relazione ai prezzi
+        if re.search(r'aggiornamento\s+trimestrale', self.text, re.IGNORECASE):
+            self.data['update_freq'] = 'Trimestrale'

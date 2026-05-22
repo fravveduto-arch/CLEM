@@ -19,10 +19,22 @@ import os
 import json
 from datetime import date
 from urllib.parse import urlencode, parse_qs, urlparse
+from dotenv import load_dotenv
+
+load_dotenv() # Carica .env in locale
 
 from fpdf import FPDF
 from parser import EnergyParser
 from market import get_market_indices, get_market_offers, FALLBACK, FALLBACK_OFFERS
+
+# ── Caching ───────────────────────────────────────────────────────────────────
+@st.cache_data(ttl=3600) # Cache 1 ora per i risultati API in sessione
+def get_cached_indices(api_key):
+    return get_market_indices(api_key)
+
+@st.cache_data(ttl=3600*12) # Cache 12 ore per le offerte
+def get_cached_offers(api_key):
+    return get_market_offers(api_key)
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -418,6 +430,8 @@ def generate_pdf_report(vendor, luce_data: dict, gas_data: dict,
     if luce_data:
         section_table("Energia Elettrica", [
             ["PUN (Mercato)", f"~{pun:.4f} €/kWh", "Aggiornato"],
+            ["Modalità PUN", luce_data.get('index_mode', 'PUN Medio mensile'), "Da contratto"],
+            ["Frequenza agg.", luce_data.get('update_freq', 'Mensile'), "Tempo reale"],
             ["Perdite di rete", "+10%", "Moltiplicatore 1,10"],
             ["Spread", f"{luce_data.get('spread',0):.4f} €/kWh", "Da contratto"],
             ["Quota fissa", f"{luce_data.get('fixed_cost',0):.2f} €/mese", "PCV + Potenza"],
@@ -426,6 +440,8 @@ def generate_pdf_report(vendor, luce_data: dict, gas_data: dict,
     if gas_data:
         section_table("Gas Naturale", [
             ["PSV (Mercato)", f"{psv:.4f} €/Smc", "Aggiornato"],
+            ["Modalità PSV", gas_data.get('index_mode', 'PSV (Media Day-Ahead)'), "Da contratto"],
+            ["Frequenza agg.", gas_data.get('update_freq', 'Mensile'), "Tempo reale"],
             ["Spread", f"{gas_data.get('spread',0):.4f} €/Smc", "Da contratto"],
             ["Quota fissa", f"{gas_data.get('fixed_cost',0):.2f} €/mese", "QVD + Quote"],
         ])
@@ -524,9 +540,9 @@ with st.sidebar:
     st.markdown("### 📈 Indici di Mercato")
     if api_key:
         with st.spinner("Aggiornamento prezzi..."):
-            indices = get_market_indices(api_key)
+            indices = get_cached_indices(api_key)
         with st.spinner("Aggiornamento offerte..."):
-            market_offers = get_market_offers(api_key)
+            market_offers = get_cached_offers(api_key)
         src_label = "✅ Aggiornato via Claude" if indices.get('source') == 'claude_websearch' else \
                     "📦 Cache" if indices.get('source') != 'fallback' else "📦 Valori predefiniti"
         st.caption(src_label)
@@ -648,7 +664,8 @@ with tab_personal:
             for col in ['consumption', 'spread', 'total_cost', 'price_per_unit']:
                 if col in df.columns:
                     df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-            for col in ['bill_date', 'vendor', 'type', 'pod', 'pdr', 'filename']:
+            for col in ['bill_date', 'vendor', 'type', 'pod', 'pdr', 'filename', 'index_mode', 'update_freq']:
+
                 if col in df.columns:
                     df[col] = df[col].fillna('')
 
@@ -710,7 +727,9 @@ with tab_personal:
                     ptype_l = current_luce.get('period_type', 'stimato')
                     annual_l, mult_l, fonte_l = annual_projection(cons_l, days_l, ptype_l)
                     st.table(pd.DataFrame([
-                        {"Voce": "PUN (Mercato)",       "Valore": f"~{indices['PUN_Luce']} €/kWh",  "Note": "Aggiornato"},
+                        {"Voce": "PUN (Mercato)",       "Valore": f"~{indices['PUN_Luce']:.4f} €/kWh",  "Note": "Aggiornato"},
+                        {"Voce": "Modalità PUN",        "Valore": current_luce.get('index_mode', 'PUN Medio mensile'), "Note": "Da contratto"},
+                        {"Voce": "Frequenza agg.",      "Valore": current_luce.get('update_freq', 'Mensile'), "Note": "Tempo reale"},
                         {"Voce": "Perdite di rete",     "Valore": "+10% sul PUN",                      "Note": "Moltiplicatore 1,10"},
                         {"Voce": "Spread contratto",    "Valore": f"{safe_float(current_luce.get('spread',0)):.4f} €/kWh", "Note": "Da bolletta"},
                         {"Voce": "Quota fissa",         "Valore": f"{luce_fixed_month:.2f} €/mese",  "Note": "PCV + Potenza"},
@@ -726,7 +745,9 @@ with tab_personal:
                     ptype_g = current_gas.get('period_type', 'stimato')
                     annual_g, mult_g, fonte_g = annual_projection(cons_g, days_g, ptype_g)
                     st.table(pd.DataFrame([
-                        {"Voce": "PSV (Mercato)",       "Valore": f"{indices['PSV_Gas']} €/Smc",     "Note": "Aggiornato"},
+                        {"Voce": "PSV (Mercato)",       "Valore": f"{indices['PSV_Gas']:.4f} €/Smc",     "Note": "Aggiornato"},
+                        {"Voce": "Modalità PSV",        "Valore": current_gas.get('index_mode', 'PSV (Media Day-Ahead)'), "Note": "Da contratto"},
+                        {"Voce": "Frequenza agg.",      "Valore": current_gas.get('update_freq', 'Mensile'), "Note": "Tempo reale"},
                         {"Voce": "Spread contratto",    "Valore": f"{safe_float(current_gas.get('spread',0)):.4f} €/Smc", "Note": "Da bolletta"},
                         {"Voce": "Quota fissa",         "Valore": f"{gas_fixed_month:.2f} €/mese",   "Note": "QVD + Quote"},
                         {"Voce": "Consumo periodo",     "Valore": f"{cons_g:.0f} Smc",                 "Note": fonte_g},
@@ -815,6 +836,7 @@ with tab_guest:
             try:
                 parser = EnergyParser(io.BytesIO(guest_file.read()))
                 bd = parser.parse()
+                st.session_state['last_guest_bd'] = bd
                 guest_vendor   = bd.get('vendor', 'Altro')
                 guest_luce_kwh = safe_float(bd.get('consumption', 300)) if bd.get('type') == 'Luce' else guest_luce_kwh
                 guest_gas_smc  = safe_float(bd.get('consumption', 150)) if bd.get('type') == 'Gas'  else guest_gas_smc
@@ -869,6 +891,36 @@ with tab_guest:
             st.markdown("---")
             st.metric("💶 Spesa Annua Stimata (fornitore attuale)", f"€ {guest_annual:,.2f}")
 
+            # ── Analisi tecnica ospite ────────────────────────────────────────────────
+            st.markdown("### 🔬 Analisi Tecnica")
+            last_bd = st.session_state.get('last_guest_bd', {})
+            col_l, col_g = st.columns(2)
+            with col_l:
+                if annual_luce > 0:
+                    st.markdown("#### ⚡ Energia Elettrica")
+                    st.table(pd.DataFrame([
+                        {"Voce": "PUN (Mercato)",       "Valore": f"~{indices['PUN_Luce']:.4f} €/kWh",  "Note": "Aggiornato"},
+                        {"Voce": "Modalità PUN",        "Valore": last_bd.get('index_mode', 'PUN Medio mensile') if last_bd.get('type')=='Luce' else 'PUN Medio mensile', "Note": "Da contratto"},
+                        {"Voce": "Frequenza agg.",      "Valore": last_bd.get('update_freq', 'Mensile') if last_bd.get('type')=='Luce' else 'Mensile', "Note": "Tempo reale"},
+                        {"Voce": "Perdite di rete",     "Valore": "+10% sul PUN",                      "Note": "Moltiplicatore 1,10"},
+                        {"Voce": "Spread contratto",    "Valore": f"{guest_luce_spr:.4f} €/kWh",       "Note": "Input"},
+                        {"Voce": "Quota fissa",         "Valore": f"{guest_luce_fix:.2f} €/mese",      "Note": "Input"},
+                        {"Voce": "Consumo annuo",       "Valore": f"{annual_luce:.0f} kWh/anno",       "Note": "Proiezione"},
+                    ]))
+            with col_g:
+                if annual_gas > 0:
+                    st.markdown("#### 🔥 Gas Naturale")
+                    st.table(pd.DataFrame([
+                        {"Voce": "PSV (Mercato)",       "Valore": f"{indices['PSV_Gas']:.4f} €/Smc",     "Note": "Aggiornato"},
+                        {"Voce": "Modalità PSV",        "Valore": last_bd.get('index_mode', 'PSV (Media Day-Ahead)') if last_bd.get('type')=='Gas' else 'PSV (Media Day-Ahead)', "Note": "Da contratto"},
+                        {"Voce": "Frequenza agg.",      "Valore": last_bd.get('update_freq', 'Mensile') if last_bd.get('type')=='Gas' else 'Mensile', "Note": "Tempo reale"},
+                        {"Voce": "Spread contratto",    "Valore": f"{guest_gas_spr:.4f} €/Smc",        "Note": "Input"},
+                        {"Voce": "Quota fissa",         "Valore": f"{guest_gas_fix:.2f} €/mese",       "Note": "Input"},
+                        {"Voce": "Consumo annuo",       "Valore": f"{annual_gas:.0f} Smc/anno",        "Note": "Proiezione"},
+                    ]))
+
+            st.markdown("---")
+            st.markdown("### 💰 Simulazione Risparmio")
             res_df_g, best_offer_g, best_saving_g = render_comparison_table(
                 guest_annual, annual_luce, annual_gas, indices, extra_offers
             )
@@ -878,10 +930,18 @@ with tab_guest:
                               guest_luce_fix, guest_gas_fix, guest_vendor)
 
             # PDF ospite
+            l_data = {'spread': guest_luce_spr, 'consumption': annual_luce, 'fixed_cost': guest_luce_fix}
+            g_data = {'spread': guest_gas_spr,  'consumption': annual_gas,  'fixed_cost': guest_gas_fix}
+            
+            last_bd = st.session_state.get('last_guest_bd')
+            if last_bd:
+                if last_bd.get('type') == 'Luce':
+                    l_data.update({'index_mode': last_bd.get('index_mode'), 'update_freq': last_bd.get('update_freq')})
+                elif last_bd.get('type') == 'Gas':
+                    g_data.update({'index_mode': last_bd.get('index_mode'), 'update_freq': last_bd.get('update_freq')})
+
             pdf_g = generate_pdf_report(
-                guest_vendor,
-                {'spread': guest_luce_spr, 'consumption': annual_luce, 'fixed_cost': guest_luce_fix},
-                {'spread': guest_gas_spr,  'consumption': annual_gas,  'fixed_cost': guest_gas_fix},
+                guest_vendor, l_data, g_data,
                 res_df_g, indices, guest_annual
             )
             st.download_button(
