@@ -58,6 +58,7 @@ class EnergyParser:
         self.data['type'] = bill_type
 
         self._parse_date()
+        self._parse_billing_period()
         self._parse_consumption(bill_type)
         self._parse_costs(vendor, bill_type)
         self._parse_identifiers(bill_type)
@@ -100,7 +101,54 @@ class EnergyParser:
                 return
         self.data['bill_date'] = ''
 
-    def _parse_consumption(self, bill_type: str):
+    def _parse_billing_period(self):
+        """
+        Rileva il periodo di fatturazione (data inizio e fine) e calcola
+        la durata in giorni. Imposta billing_days e period_type
+        ('mensile', 'bimestrale', 'stimato').
+        """
+        # Pattern: "dal DD/MM/YYYY al DD/MM/YYYY" oppure "dal DD/MM/YYYY al DD/MM/YYYY"
+        period_patterns = [
+            r'dal\s+(\d{2}/\d{2}/\d{4})\s+al\s+(\d{2}/\d{2}/\d{4})',
+            r'periodo\s+(?:di\s+fornitura\s+)?(?:dal\s+)?(\d{2}/\d{2}/\d{4})\s*[-–]\s*(\d{2}/\d{2}/\d{4})',
+            r'(\d{2}/\d{2}/\d{4})\s*[-–/]\s*(\d{2}/\d{2}/\d{4})',
+        ]
+
+        import datetime
+        for p in period_patterns:
+            m = re.search(p, self.text, re.IGNORECASE)
+            if m:
+                try:
+                    d1 = datetime.datetime.strptime(m.group(1), '%d/%m/%Y').date()
+                    d2 = datetime.datetime.strptime(m.group(2), '%d/%m/%Y').date()
+                    days = abs((d2 - d1).days)
+                    if 10 < days < 400:  # sanity check
+                        self.data['billing_days'] = days
+                        if days <= 45:
+                            self.data['period_type'] = 'mensile'
+                        elif days <= 75:
+                            self.data['period_type'] = 'bimestrale'
+                        elif days <= 105:
+                            self.data['period_type'] = 'trimestrale'
+                        else:
+                            self.data['period_type'] = 'stimato'
+                        return
+                except ValueError:
+                    continue
+
+        # Fallback: euristica su consumo (impostato dopo, quindi usiamo keyword)
+        # Se troviamo "mensile" o "bimestrale" esplicitamente nel testo
+        if re.search(r'\bmensil\w+\b', self.text, re.IGNORECASE):
+            self.data['billing_days'] = 30
+            self.data['period_type'] = 'mensile'
+        elif re.search(r'\bbimestral\w+\b', self.text, re.IGNORECASE):
+            self.data['billing_days'] = 60
+            self.data['period_type'] = 'bimestrale'
+        else:
+            self.data['billing_days'] = 0
+            self.data['period_type'] = 'stimato'
+
+
         if bill_type == 'Gas':
             patterns = [
                 r'Consumo\s+(?:del\s+periodo\s+)?([\d,.]+)\s*[Ss]mc',

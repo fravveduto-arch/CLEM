@@ -27,7 +27,7 @@ from market import get_market_indices, get_market_offers, FALLBACK, FALLBACK_OFF
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="CLEM - Claude Energy Monitor",
-    page_icon="Luce",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -121,7 +121,30 @@ def safe_float(val, default=0.0) -> float:
         return default
 
 
-def compute_annual_cost(luce_kwh, gas_smc, indices, luce_spread, gas_spread,
+def annual_projection(consumption: float, billing_days: int, period_type: str) -> tuple[float, str, str]:
+    """
+    Calcola la proiezione annua del consumo.
+    Restituisce (valore_annuo, moltiplicatore_usato, fonte).
+    """
+    if billing_days > 10:
+        # Rilevato dal PDF: proiezione precisa
+        annual = consumption * (365 / billing_days)
+        label = f"{billing_days}gg rilevati da bolletta"
+        return round(annual, 1), f"x{365/billing_days:.1f}", label
+    elif period_type == 'mensile':
+        return round(consumption * 12, 1), "x12", "mensile (da testo bolletta)"
+    elif period_type == 'trimestrale':
+        return round(consumption * 4, 1), "x4", "trimestrale (da testo bolletta)"
+    elif period_type == 'bimestrale':
+        return round(consumption * 6, 1), "x6", "bimestrale (default)"
+    else:
+        # Euristica: se consumo basso -> mensile, altrimenti bimestrale
+        if consumption < 150:
+            return round(consumption * 12, 1), "x12", "stimato mensile"
+        else:
+            return round(consumption * 6, 1), "x6", "stimato bimestrale"
+
+
                         luce_fixed_month, gas_fixed_month) -> float:
     return (
         (luce_kwh * (indices['PUN_Luce'] * 1.1 + luce_spread)) + (luce_fixed_month * 12) +
@@ -244,7 +267,7 @@ def render_simulation_tabs(current_annual, luce_kwh, gas_smc,
     src_label = "Offerte aggiornate da ARERA/comparatori" if src == 'arera_websearch' else "Offerte di riferimento (aggiornamento in corso)"
     st.caption(f"📋 {src_label} | Aggiornamento ogni 15 giorni")
 
-    tab_l, tab_g, tab_d = st.tabs(["Luce Solo Luce", "Gas Solo Gas", "🔌 Dual Fuel"])
+    tab_l, tab_g, tab_d = st.tabs(["⚡ Solo Luce", "🔥 Solo Gas", "🔌 Dual Fuel"])
 
     best_offer_name = ""
     best_saving     = 0.0
@@ -382,7 +405,7 @@ def generate_pdf_report(vendor, luce_data: dict, gas_data: dict,
         pdf.ln(3)
 
     if luce_data:
-        section_table("Luce Energia Elettrica", [
+        section_table("⚡ Energia Elettrica", [
             ["PUN (Mercato)", f"~{indices['PUN_Luce']} EUR/kWh", "Aggiornato"],
             ["Perdite di rete", "+10%", "Moltiplicatore 1,10"],
             ["Spread", f"{luce_data.get('spread',0):.4f} EUR/kWh", "Da contratto"],
@@ -390,7 +413,7 @@ def generate_pdf_report(vendor, luce_data: dict, gas_data: dict,
         ])
 
     if gas_data:
-        section_table("Gas Gas Naturale", [
+        section_table("🔥 Gas Naturale", [
             ["PSV (Mercato)", f"{indices['PSV_Gas']} EUR/Smc", "Aggiornato"],
             ["Spread", f"{gas_data.get('spread',0):.4f} EUR/Smc", "Da contratto"],
             ["Quota fissa", f"{gas_data.get('fixed_cost',0):.2f} EUR/mese", "QVD + Quote"],
@@ -460,7 +483,7 @@ def get_prefill() -> dict:
 #  MAIN APP
 # ═══════════════════════════════════════════════════════════════════════════════
 
-st.markdown("# Luce CLEM")
+st.markdown("# ⚡ CLEM")
 st.markdown("##### Claude Energy Monitor - Analisi e comparazione bollette energia")
 st.markdown("---")
 
@@ -614,12 +637,17 @@ with tab_personal:
         if col in df.columns:
             df[col] = df[col].fillna('')
 
-    # Vendor rilevato
-    vendors_found = df['vendor'].unique().tolist() if 'vendor' in df.columns else []
-    primary_vendor = vendors_found[0] if vendors_found else 'Sconosciuto'
+    # Fornitore della bolletta più recente (non semplicemente il primo trovato)
+    df['_dp'] = pd.to_datetime(df['bill_date'], format='%d/%m/%Y', errors='coerce')
+    most_recent_row = df.sort_values('_dp', ascending=False).iloc[0] if not df.empty else None
+    primary_vendor = most_recent_row['vendor'] if most_recent_row is not None and most_recent_row['vendor'] else 'Sconosciuto'
 
-    st.markdown(f"#### Fornitore rilevato: **{primary_vendor}** "
-                f"<span class='vendor-badge'>{len(local_files)} bollette</span>",
+    # Conta bollette per fornitore per il badge
+    vendor_counts = df['vendor'].value_counts().to_dict() if 'vendor' in df.columns else {}
+    vendor_summary = " | ".join([f"{v}: {n}" for v, n in vendor_counts.items()])
+
+    st.markdown(f"#### Fornitore attuale: **{primary_vendor}** "
+                f"<span class='vendor-badge'>{vendor_summary}</span>",
                 unsafe_allow_html=True)
 
     # Separazione Luce / Gas
@@ -641,14 +669,14 @@ with tab_personal:
         hist_col1, hist_col2 = st.columns(2)
         with hist_col1:
             if len(luce_df) > 1:
-                st.markdown("**Luce Energia Elettrica (kWh)**")
+                st.markdown("**⚡ Energia Elettrica (kWh)**")
                 hist_l = luce_df[['bill_date','consumption']].copy()
                 hist_l['_dp'] = pd.to_datetime(hist_l['bill_date'], format='%d/%m/%Y', errors='coerce')
                 hist_l = hist_l.sort_values('_dp').set_index('bill_date')['consumption']
                 st.bar_chart(hist_l)
         with hist_col2:
             if len(gas_df) > 1:
-                st.markdown("**Gas Gas Naturale (Smc)**")
+                st.markdown("**🔥 Gas Naturale (Smc)**")
                 hist_g = gas_df[['bill_date','consumption']].copy()
                 hist_g['_dp'] = pd.to_datetime(hist_g['bill_date'], format='%d/%m/%Y', errors='coerce')
                 hist_g = hist_g.sort_values('_dp').set_index('bill_date')['consumption']
@@ -660,24 +688,34 @@ with tab_personal:
     col_l, col_g = st.columns(2)
     with col_l:
         if current_luce is not None:
-            st.markdown("#### Luce Energia Elettrica")
-            st.caption(f"Bolletta del {current_luce.get('bill_date','-')}")
+            st.markdown("#### ⚡ Energia Elettrica")
+            st.caption(f"Bolletta del {current_luce.get('bill_date','-')} | Fornitore: {current_luce.get('vendor','-')}")
+            cons_l = safe_float(current_luce.get('consumption', 0))
+            days_l = int(safe_float(current_luce.get('billing_days', 0)))
+            ptype_l = current_luce.get('period_type', 'stimato')
+            annual_l, mult_l, fonte_l = annual_projection(cons_l, days_l, ptype_l)
             st.table(pd.DataFrame([
-                {"Voce": "PUN (Mercato)",      "Valore": f"~{indices['PUN_Luce']} EUR/kWh",     "Note": "Aggiornato"},
-                {"Voce": "Perdite di rete",    "Valore": "+10% sul PUN",                       "Note": "Moltiplicatore 1,10"},
-                {"Voce": "Spread contratto",   "Valore": f"{safe_float(current_luce.get('spread',0)):.4f} EUR/kWh", "Note": "Da bolletta"},
-                {"Voce": "Quota fissa",        "Valore": f"{luce_fixed_month:.2f} EUR/mese",     "Note": "PCV + Potenza"},
-                {"Voce": "Consumo periodo",    "Valore": f"{safe_float(current_luce.get('consumption',0)):.0f} kWh", "Note": ""},
+                {"Voce": "PUN (Mercato)",       "Valore": f"~{indices['PUN_Luce']} EUR/kWh",  "Note": "Aggiornato"},
+                {"Voce": "Perdite di rete",     "Valore": "+10% sul PUN",                      "Note": "Moltiplicatore 1,10"},
+                {"Voce": "Spread contratto",    "Valore": f"{safe_float(current_luce.get('spread',0)):.4f} EUR/kWh", "Note": "Da bolletta"},
+                {"Voce": "Quota fissa",         "Valore": f"{luce_fixed_month:.2f} EUR/mese",  "Note": "PCV + Potenza"},
+                {"Voce": "Consumo periodo",     "Valore": f"{cons_l:.0f} kWh",                 "Note": fonte_l},
+                {"Voce": "Proiezione annua",    "Valore": f"{annual_l:.0f} kWh/anno",          "Note": f"Moltiplicatore {mult_l}"},
             ]))
     with col_g:
         if current_gas is not None:
-            st.markdown("#### Gas Gas Naturale")
-            st.caption(f"Bolletta del {current_gas.get('bill_date','-')}")
+            st.markdown("#### 🔥 Gas Naturale")
+            st.caption(f"Bolletta del {current_gas.get('bill_date','-')} | Fornitore: {current_gas.get('vendor','-')}")
+            cons_g = safe_float(current_gas.get('consumption', 0))
+            days_g = int(safe_float(current_gas.get('billing_days', 0)))
+            ptype_g = current_gas.get('period_type', 'stimato')
+            annual_g, mult_g, fonte_g = annual_projection(cons_g, days_g, ptype_g)
             st.table(pd.DataFrame([
-                {"Voce": "PSV (Mercato)",      "Valore": f"{indices['PSV_Gas']} EUR/Smc",        "Note": "Aggiornato"},
-                {"Voce": "Spread contratto",   "Valore": f"{safe_float(current_gas.get('spread',0)):.4f} EUR/Smc", "Note": "Da bolletta"},
-                {"Voce": "Quota fissa",        "Valore": f"{gas_fixed_month:.2f} EUR/mese",      "Note": "QVD + Quote"},
-                {"Voce": "Consumo periodo",    "Valore": f"{safe_float(current_gas.get('consumption',0)):.0f} Smc", "Note": ""},
+                {"Voce": "PSV (Mercato)",       "Valore": f"{indices['PSV_Gas']} EUR/Smc",     "Note": "Aggiornato"},
+                {"Voce": "Spread contratto",    "Valore": f"{safe_float(current_gas.get('spread',0)):.4f} EUR/Smc", "Note": "Da bolletta"},
+                {"Voce": "Quota fissa",         "Valore": f"{gas_fixed_month:.2f} EUR/mese",   "Note": "QVD + Quote"},
+                {"Voce": "Consumo periodo",     "Valore": f"{cons_g:.0f} Smc",                 "Note": fonte_g},
+                {"Voce": "Proiezione annua",    "Valore": f"{annual_g:.0f} Smc/anno",          "Note": f"Moltiplicatore {mult_g}"},
             ]))
 
     # ── Simulazione risparmio ─────────────────────────────────────────────────
@@ -685,8 +723,15 @@ with tab_personal:
         st.markdown("---")
         st.markdown("### 💰 Simulazione Risparmio")
 
-        luce_kwh    = safe_float(current_luce.get('consumption', 352)) * 6 if current_luce is not None else 0.0
-        gas_smc     = safe_float(current_gas.get('consumption', 194))  * 6 if current_gas  is not None else 0.0
+        luce_cons   = safe_float(current_luce.get('consumption', 352)) if current_luce is not None else 0.0
+        gas_cons    = safe_float(current_gas.get('consumption', 194))  if current_gas  is not None else 0.0
+        luce_days   = int(safe_float(current_luce.get('billing_days', 0))) if current_luce is not None else 0
+        gas_days    = int(safe_float(current_gas.get('billing_days', 0)))  if current_gas  is not None else 0
+        luce_ptype  = current_luce.get('period_type', 'stimato') if current_luce is not None else 'stimato'
+        gas_ptype   = current_gas.get('period_type', 'stimato')  if current_gas  is not None else 'stimato'
+
+        luce_kwh, _, _ = annual_projection(luce_cons, luce_days, luce_ptype)
+        gas_smc,  _, _ = annual_projection(gas_cons,  gas_days,  gas_ptype)
         luce_spread = safe_float(current_luce.get('spread', 0)) if current_luce is not None else 0.0
         gas_spread  = safe_float(current_gas.get('spread', 0))  if current_gas  is not None else 0.0
 
