@@ -143,7 +143,7 @@ def annual_projection(consumption: float, billing_days: int, period_type: str) -
             return round(consumption * 12, 1), "x12", "stimato mensile"
         else:
             return round(consumption * 6, 1), "x6", "stimato bimestrale"
-
+def compute_annual_cost(luce_kwh, gas_smc, indices, luce_spread, gas_spread,
 
                         luce_fixed_month, gas_fixed_month) -> float:
     return (
