@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+.market_cache.json
+.offers_cache.json
+*.pyc
+.streamlit/
+app-old*.py
+market-old.py
+parser-old.py
+CLEM_bills/
